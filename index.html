@@ -154,6 +154,19 @@
             color: black;
             font-size: 16px;
         }
+        .feature-bar {
+            background: rgba(29, 185, 84, 0.3);
+            height: 20px;
+            border-radius: 10px;
+            margin: 5px 0;
+            position: relative;
+        }
+        .feature-fill {
+            background: #1db954;
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -227,7 +240,7 @@
     <script>
         // Global variables
         let CURRENT_URL = window.location.href.split('?')[0].split('#')[0];
-        let REDIRECT_URI = CURRENT_URL.endsWith('/') ? CURRENT_URL + 'callback' : CURRENT_URL + '/callback';
+        let REDIRECT_URI = CURRENT_URL;  // FIXED: Remove the /callback part
         
         // Required scopes for comprehensive listening data
         const SCOPES = [
@@ -408,6 +421,17 @@
                 result += chars.charAt(array[i] % chars.length);
             }
             return result;
+        }
+
+        // Error handling and UI functions
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function clearError() {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = '';
         }
 
         function showLoggedIn() {
@@ -741,13 +765,107 @@
                     `).join('') : '<p>No context data available</p>'}
                 </div>
                 
-                <p style="margin-top: 20px; font-size: 0.9em; color: #b3b3b3;">
-                    <em>Note: This tracks listening across ALL your devices - phone, PC, web player, smart speakers, etc. 
-                    Spotify's API aggregates data from all connected devices automatically.</em>
+                <p style="margin-top: 15px; font-size: 0.9em; color: #b3b3b3;">
+                    <em>Note: Device information shows your current playback state and listening contexts from recent tracks.</em>
                 </p>
             `;
             
             document.getElementById('deviceContainer').style.display = 'block';
         }
- 
+
         function displayAudioFeaturesAnalysis(audioFeatures, recentTracks) {
+            const container = document.getElementById('audioFeaturesAnalysis');
+            
+            if (!audioFeatures.audio_features || audioFeatures.audio_features.length === 0) {
+                container.innerHTML = '<p>No audio features data available.</p>';
+                document.getElementById('audioFeaturesContainer').style.display = 'block';
+                return;
+            }
+
+            // Calculate averages for each audio feature
+            const features = audioFeatures.audio_features.filter(f => f !== null);
+            const avgFeatures = {
+                danceability: 0,
+                energy: 0,
+                speechiness: 0,
+                acousticness: 0,
+                instrumentalness: 0,
+                liveness: 0,
+                valence: 0,
+                tempo: 0
+            };
+
+            features.forEach(feature => {
+                Object.keys(avgFeatures).forEach(key => {
+                    if (key === 'tempo') {
+                        avgFeatures[key] += feature[key] || 0;
+                    } else {
+                        avgFeatures[key] += (feature[key] || 0) * 100; // Convert to percentage
+                    }
+                });
+            });
+
+            Object.keys(avgFeatures).forEach(key => {
+                avgFeatures[key] = Math.round(avgFeatures[key] / features.length);
+            });
+
+            // Feature descriptions
+            const featureDescriptions = {
+                danceability: 'How suitable a track is for dancing',
+                energy: 'Perceptual measure of intensity and power',
+                speechiness: 'Presence of spoken words in a track',
+                acousticness: 'Confidence measure of whether the track is acoustic',
+                instrumentalness: 'Predicts whether a track contains no vocals',
+                liveness: 'Detects the presence of an audience in the recording',
+                valence: 'Musical positiveness (happy vs sad)',
+                tempo: 'Overall estimated tempo in BPM'
+            };
+
+            container.innerHTML = `
+                <h3>🎵 Your Music's Audio Characteristics</h3>
+                <p style="margin-bottom: 20px; color: #b3b3b3;">Based on your last ${features.length} recently played tracks</p>
+                
+                ${Object.entries(avgFeatures).map(([feature, value]) => {
+                    const isTempoFeature = feature === 'tempo';
+                    const displayValue = isTempoFeature ? `${value} BPM` : `${value}%`;
+                    const barWidth = isTempoFeature ? Math.min((value / 200) * 100, 100) : value;
+                    
+                    return `
+                        <div style="margin: 15px 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="font-weight: bold; text-transform: capitalize;">${feature}</span>
+                                <span style="color: #1db954;">${displayValue}</span>
+                            </div>
+                            <div class="feature-bar">
+                                <div class="feature-fill" style="width: ${barWidth}%;"></div>
+                            </div>
+                            <p style="font-size: 0.8em; color: #b3b3b3; margin: 5px 0;">${featureDescriptions[feature]}</p>
+                        </div>
+                    `;
+                }).join('')}
+                
+                <div style="margin-top: 25px; padding: 15px; background: rgba(29, 185, 84, 0.1); border-radius: 5px;">
+                    <h4>🎯 Your Music Profile</h4>
+                    <p style="margin: 10px 0;">
+                        ${avgFeatures.valence > 60 ? 'You tend to listen to upbeat, positive music! 😊' : 
+                          avgFeatures.valence < 40 ? 'You prefer more melancholic or emotional tracks. 😌' : 
+                          'You have a balanced taste between happy and sad music. 🎭'}
+                    </p>
+                    <p style="margin: 10px 0;">
+                        ${avgFeatures.energy > 70 ? 'High energy music is your jam! ⚡' : 
+                          avgFeatures.energy < 30 ? 'You enjoy calm, low-energy music. 🧘' : 
+                          'You like a good mix of energetic and chill tracks. ⚖️'}
+                    </p>
+                    <p style="margin: 10px 0;">
+                        ${avgFeatures.danceability > 70 ? 'Your music makes people want to dance! 💃' : 
+                          avgFeatures.danceability < 30 ? 'You prefer music that\'s more for listening than dancing. 🎧' : 
+                          'Your tracks have moderate danceability. 🕺'}
+                    </p>
+                </div>
+            `;
+            
+            document.getElementById('audioFeaturesContainer').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
