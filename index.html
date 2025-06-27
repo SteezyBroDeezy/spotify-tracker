@@ -8,7 +8,7 @@
             
             if (!allPlaylists || allPlaylists.length === 0) {
                 container.innerHTML = '<p>No playlists found.</p>';
-                showMoreBtn.style.display = 'none';
+                if (showMoreBtn) showMoreBtn.style.display = 'none';
                 document.getElementById('playlistContainer').style.display = 'block';
                 return;
             }
@@ -26,29 +26,38 @@
                         ''}
                 </div>
             ` + playlistsToShow.map(playlist => {
-                const imageUrl = playlist.images && playlist.images[0] ? playlist.images[0].url : '';
-                const isOwned = playlist.owner.display_name === playlist.owner.id;
+                // Safe property access with fallbacks
+                const imageUrl = playlist.images && playlist.images.length > 0 && playlist.images[0].url ? playlist.images[0].url : '';
+                const playlistName = playlist.name || 'Unnamed Playlist';
+                const trackCount = playlist.tracks && playlist.tracks.total ? playlist.tracks.total : 0;
+                const isPublic = playlist.public !== undefined ? playlist.public : false;
+                const ownerName = playlist.owner && playlist.owner.display_name ? playlist.owner.display_name : 'Unknown';
+                const description = playlist.description || '';
                 
                 return `
                     <div class="track-item">
-                        ${imageUrl ? `<img src="${imageUrl}" alt="${playlist.name}" class="track-image">` : 
-                        '<div class="track-image" style="background: linear-gradient(45deg, #1db954, #191414); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;">🎵</div>'}
+                        ${imageUrl ? 
+                            `<img src="${imageUrl}" alt="${playlistName}" class="track-image" onerror="this.style.display='none'">` : 
+                            '<div class="track-image" style="background: linear-gradient(45deg, #1db954, #191414); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;">🎵</div>'
+                        }
                         <div class="track-info">
-                            <div class="track-name">${playlist.name}</div>
-                            <div class="track-artist">${playlist.tracks.total} tracks • ${playlist.public ? 'Public' : 'Private'} • ${isOwned ? 'Your playlist' : `by ${playlist.owner.display_name}`}</div>
+                            <div class="track-name">${playlistName}</div>
+                            <div class="track-artist">${trackCount} tracks • ${isPublic ? 'Public' : 'Private'} • by ${ownerName}</div>
                         </div>
                         <div class="track-time">
-                            ${playlist.description ? `<small style="color: #b3b3b3;">${playlist.description.slice(0, 50)}${playlist.description.length > 50 ? '...' : ''}</small>` : ''}
+                            ${description ? `<small style="color: #b3b3b3;">${description.slice(0, 50)}${description.length > 50 ? '...' : ''}</small>` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
             
-            if (currentPlaylistDisplay >= allPlaylists.length && allPlaylists.length === 50) {
-                showMoreBtn.style.display = 'block';
-                showMoreBtn.textContent = 'Load More Playlists (50+)';
-            } else {
-                showMoreBtn.style.display = 'none';
+            if (showMoreBtn) {
+                if (currentPlaylistDisplay >= allPlaylists.length && allPlaylists.length === 50) {
+                    showMoreBtn.style.display = 'block';
+                    showMoreBtn.textContent = 'Load More Playlists (50+)';
+                } else {
+                    showMoreBtn.style.display = 'none';
+                }
             }
             
             document.getElementById('playlistContainer').style.display = 'block';
@@ -104,9 +113,11 @@
             // Add from recent tracks
             if (recentTracks.items) {
                 recentTracks.items.forEach(item => {
-                    const album = item.track.album;
-                    albumMap.set(album.id, album);
-                    albumPlayCounts.set(album.id, (albumPlayCounts.get(album.id) || 0) + 1);
+                    if (item.track && item.track.album) {
+                        const album = item.track.album;
+                        albumMap.set(album.id, album);
+                        albumPlayCounts.set(album.id, (albumPlayCounts.get(album.id) || 0) + 1);
+                    }
                 });
             }
             
@@ -114,10 +125,12 @@
             [topTracksShort, topTracksMedium, topTracksLong].forEach(data => {
                 if (data && data.items) {
                     data.items.forEach(track => {
-                        const album = track.album;
-                        if (!albumMap.has(album.id)) {
-                            albumMap.set(album.id, album);
-                            albumPlayCounts.set(album.id, 1);
+                        if (track && track.album) {
+                            const album = track.album;
+                            if (!albumMap.has(album.id)) {
+                                albumMap.set(album.id, album);
+                                albumPlayCounts.set(album.id, 1);
+                            }
                         }
                     });
                 }
@@ -127,6 +140,12 @@
             allAlbums = Array.from(albumMap.values()).sort((a, b) => {
                 return (albumPlayCounts.get(b.id) || 0) - (albumPlayCounts.get(a.id) || 0);
             });
+            
+            if (allAlbums.length === 0) {
+                container.innerHTML = '<p>No album data available.</p>';
+                document.getElementById('albumContainer').style.display = 'block';
+                return;
+            }
             
             const albumsToShow = allAlbums.slice(0, currentAlbumDisplay);
             
@@ -141,17 +160,25 @@
                         ''}
                 </div>
             ` + albumsToShow.map(album => {
-                const imageUrl = album.images && album.images[0] ? album.images[0].url : '';
-                const playCount = albumPlayCounts.get(album.id) || 0;
+                // Safe property access
+                const imageUrl = album.images && album.images.length > 0 && album.images[0].url ? album.images[0].url : '';
+                const albumName = album.name || 'Unknown Album';
+                const artistNames = album.artists && album.artists.length > 0 ? 
+                    album.artists.map(a => a.name || 'Unknown Artist').join(', ') : 
+                    'Unknown Artist';
                 const releaseYear = album.release_date ? new Date(album.release_date).getFullYear() : 'Unknown';
+                const totalTracks = album.total_tracks || 0;
+                const playCount = albumPlayCounts.get(album.id) || 0;
                 
                 return `
                     <div class="track-item">
-                        ${imageUrl ? `<img src="${imageUrl}" alt="${album.name}" class="track-image">` : 
-                        '<div class="track-image" style="background: linear-gradient(45deg, #1db954, #191414); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;">💿</div>'}
+                        ${imageUrl ? 
+                            `<img src="${imageUrl}" alt="${albumName}" class="track-image" onerror="this.style.display='none'">` : 
+                            '<div class="track-image" style="background: linear-gradient(45deg, #1db954, #191414); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;">💿</div>'
+                        }
                         <div class="track-info">
-                            <div class="track-name">${album.name}</div>
-                            <div class="track-artist">${album.artists.map(a => a.name).join(', ')} • ${releaseYear} • ${album.total_tracks} tracks</div>
+                            <div class="track-name">${albumName}</div>
+                            <div class="track-artist">${artistNames} • ${releaseYear} • ${totalTracks} tracks</div>
                         </div>
                         <div class="track-time">
                             ${playCount > 1 ? `${playCount} plays` : '1 play'}
