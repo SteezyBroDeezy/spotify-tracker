@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Listening History Tracker</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1db954, #191414);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            color: #1db954;
+            margin-bottom: 30px;
+        }
+        .auth-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(29, 185, 84, 0.1);
+            border-radius: 10px;
+        }
+        .setup-instructions {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid #ffa500;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .btn {
+            background: #1db954;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        .btn:hover {
+            background: #1ed760;
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .data-section {
+            display: none;
+            margin-top: 30px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: rgba(29, 185, 84, 0.1);
+            border: 1px solid #1db954;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #1db954;
+        }
+        .recently-played {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .track-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 10px 0;
+        }
+        .track-image {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+            margin-right: 15px;
+        }
+        .track-info {
+            flex-grow: 1;
+        }
+        .track-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .track-artist {
+            color: #b3b3b3;
+            font-size: 0.9em;
+        }
+        .track-time {
+            color: #1db954;
+            font-size: 0.8em;
+        }
+        .category-analysis {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .loading {
+            text-align: center;
+            color: #1db954;
+            font-style: italic;
+        }
+        .error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid red;
+            color: #ffcccc;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .url-info {
+            background: rgba(29, 185, 84, 0.1);
+            border: 1px solid #1db954;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        input {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+            width: 300px;
+            color: black;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Spotify Listening History Tracker</h1>
+        
+        <div class="setup-instructions">
+            <h3>⚠️ Setup Required (New Spotify Policy 2025)</h3>
+            <p><strong>Before using this app, add this EXACT redirect URI to your Spotify app:</strong></p>
+            <div class="url-info" id="redirectUriDisplay"></div>
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank" style="color: #1db954;">Spotify Developer Dashboard</a></li>
+                <li>Click on your app</li>
+                <li>Click "Edit Settings"</li>
+                <li>Add the redirect URI shown above to "Redirect URIs"</li>
+                <li>Save changes</li>
+                <li>Enter your Client ID below and click Connect</li>
+            </ol>
+        </div>
+        
+        <div class="auth-section">
+            <div id="loginSection">
+                <p>Connect your Spotify account to analyze your complete listening history across all devices</p>
+                <input type="text" id="clientIdInput" placeholder="Enter your Spotify Client ID">
+                <br>
+                <button class="btn" onclick="startAuth()">Connect Spotify Account</button>
+                <p style="font-size: 0.8em; color: #b3b3b3;">Make sure you've added the redirect URI above to your Spotify app first!</p>
+            </div>
+            <div id="loggedInSection" style="display: none;">
+                <p>✅ Connected to Spotify!</p>
+                <button class="btn" onclick="startAnalysis()">Analyze My Listening History</button>
+                <button class="btn" onclick="logout()">Disconnect</button>
+            </div>
+        </div>
+
+        <div class="data-section" id="dataSection">
+            <div id="loadingIndicator" class="loading">
+                <p>🔄 Analyzing your Spotify data across all devices...</p>
+            </div>
+            
+            <div id="errorContainer"></div>
+            
+            <div id="statsContainer" style="display: none;">
+                <h2>📊 Your Listening Statistics</h2>
+                <div class="stats-grid" id="statsGrid"></div>
+            </div>
+
+            <div id="recentlyPlayedContainer" style="display: none;">
+                <h2>🎧 Recently Played (Last 50 tracks)</h2>
+                <div class="recently-played" id="recentlyPlayed"></div>
+            </div>
+
+            <div id="categoryContainer" style="display: none;">
+                <h2>🎭 Genre & Category Analysis</h2>
+                <div class="category-analysis" id="categoryAnalysis"></div>
+            </div>
+
+            <div id="deviceContainer" style="display: none;">
+                <h2>📱 Device Usage</h2>
+                <div class="category-analysis" id="deviceAnalysis"></div>
+            </div>
+
+            <div id="audioFeaturesContainer" style="display: none;">
+                <h2>🎵 Audio Features Analysis</h2>
+                <div class="category-analysis" id="audioFeaturesAnalysis"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let CURRENT_URL = window.location.origin + window.location.pathname;
+        let REDIRECT_URI = CURRENT_URL.endsWith('/') ? CURRENT_URL + 'callback' : CURRENT_URL + '/callback';
+        
+        // Required scopes for comprehensive listening data
+        const SCOPES = [
+            'user-read-private',
+            'user-read-email', 
+            'user-read-recently-played',
+            'user-read-playback-state',
+            'user-read-currently-playing',
+            'user-top-read',
+            'playlist-read-private',
+            'user-library-read'
+        ].join(' ');
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Display the redirect URI that needs to be added to Spotify app
+            document.getElementById('redirectUriDisplay').textContent = REDIRECT_URI;
+            
+            // Check if this is the callback page
+            if (window.location.pathname.endsWith('/callback')) {
+                handleAuthorizationCallback();
+            } else if (localStorage.getItem('spotify_access_token')) {
+                showLoggedIn();
+            }
+        });
+
+        // Start OAuth flow using Authorization Code Flow with PKCE
+        async function startAuth() {
+            const clientId = document.getElementById('clientIdInput').value.trim();
+            if (!clientId) {
+                showError('Please enter your Spotify Client ID');
+                return;
+            }
+            
+            // Store client ID for later use
+            localStorage.setItem('spotify_client_id', clientId);
+            
+            try {
+                // Generate PKCE parameters
+                const codeVerifier = generateCodeVerifier();
+                const codeChallenge = await generateCodeChallenge(codeVerifier);
+                const state = generateRandomString(16);
+                
+                // Store for later verification
+                sessionStorage.setItem('spotify_code_verifier', codeVerifier);
+                sessionStorage.setItem('spotify_state', state);
+                
+                // Build authorization URL
+                const authUrl = new URL('https://accounts.spotify.com/authorize');
+                authUrl.searchParams.append('client_id', clientId);
+                authUrl.searchParams.append('response_type', 'code');
+                authUrl.searchParams.append('redirect_uri', REDIRECT_URI);
+                authUrl.searchParams.append('code_challenge_method', 'S256');
+                authUrl.searchParams.append('code_challenge', codeChallenge);
+                authUrl.searchParams.append('state', state);
+                authUrl.searchParams.append('scope', SCOPES);
+                
+                // Redirect to Spotify
+                window.location.href = authUrl.toString();
+                
+            } catch (error) {
+                showError('Error starting authentication: ' + error.message);
+            }
+        }
+
+        // Handle the authorization callback
+        async function handleAuthorizationCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+            
+            if (error) {
+                showError(`Spotify authorization error: ${error}`);
+                return;
+            }
+            
+            // Validate state
+            const storedState = sessionStorage.getItem('spotify_state');
+            if (state !== storedState) {
+                showError('Invalid state parameter - possible security issue');
+                return;
+            }
+            
+            try {
+                // Exchange code for token
+                const codeVerifier = sessionStorage.getItem('spotify_code_verifier');
+                const clientId = localStorage.getItem('spotify_client_id');
+                
+                if (!codeVerifier || !clientId) {
+                    showError('Missing authentication data. Please try again.');
+                    return;
+                }
+                
+                const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        client_id: clientId,
+                        grant_type: 'authorization_code',
+                        code: code,
+                        redirect_uri: REDIRECT_URI,
+                        code_verifier: codeVerifier,
+                    }),
+                });
+                
+                const tokenData = await tokenResponse.json();
+                
+                if (tokenData.access_token) {
+                    // Store tokens
+                    localStorage.setItem('spotify_access_token', tokenData.access_token);
+                    localStorage.setItem('spotify_refresh_token', tokenData.refresh_token);
+                    localStorage.setItem('spotify_token_expires_at', 
+                        Date.now() + (tokenData.expires_in * 1000));
+                    
+                    // Clean up
+                    sessionStorage.removeItem('spotify_code_verifier');
+                    sessionStorage.removeItem('spotify_state');
+                    
+                    // Redirect back to main page
+                    window.location.href = CURRENT_URL;
+                } else {
+                    showError(`Failed to get access token: ${tokenData.error_description || tokenData.error}`);
+                }
+                
+            } catch (error) {
+                showError('Error exchanging code for token: ' + error.message);
+            }
+        }
+
+        // PKCE utility functions
+        function generateCodeVerifier() {
+            const array = new Uint8Array(32);
+            window.crypto.getRandomValues(array);
+            return btoa(String.fromCharCode(...array))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+
+        async function generateCodeChallenge(codeVerifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(codeVerifier);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            
+            return btoa(String.fromCharCode(...new Uint8Array(digest)))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+
+        function generateRandomString(length) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            const array = new Uint8Array(length);
+            window.crypto.getRandomValues(array);
+            
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(array[i] % chars.length);
+            }
+            return result;
+        }
+
+        function showLoggedIn() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('loggedInSection').style.display = 'block';
+        }
+
+        function logout() {
+            localStorage.removeItem('spotify_access_token');
+            localStorage.removeItem('spotify_refresh_token');
+            localStorage.removeItem('spotify_token_expires_at');
+            localStorage.removeItem('spotify_client_id');
+            sessionStorage.removeItem('spotify_code_verifier');
+            sessionStorage.removeItem('spotify_state');
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('loggedInSection').style.display = 'none';
+            document.getElementById('dataSection').style.display = 'none';
+        }
+
+        // Main analysis function
+        async function startAnalysis() {
+            document.getElementById('dataSection').style.display = 'block';
+            document.getElementById('loadingIndicator').style.display = 'block';
+            clearError();
+            
+            try {
+                const token = await getValidAccessToken();
+                
+                // Get user profile
+                const profile = await makeSpotifyRequest('/me');
+                
+                // Get recently played tracks (up to 50)
+                const recentTracks = await makeSpotifyRequest('/me/player/recently-played?limit=50');
+                
+                // Get top tracks and artists for different time ranges
+                const topTracksShort = await makeSpotifyRequest('/me/top/tracks?time_range=short_term&limit=50');
+                const topTracksMedium = await makeSpotifyRequest('/me/top/tracks?time_range=medium_term&limit=50');
+                const topTracksLong = await makeSpotifyRequest('/me/top/tracks?time_range=long_term&limit=50');
+                
+                const topArtistsShort = await makeSpotifyRequest('/me/top/artists?time_range=short_term&limit=50');
+                const topArtistsMedium = await makeSpotifyRequest('/me/top/artists?time_range=medium_term&limit=50');
+                const topArtistsLong = await makeSpotifyRequest('/me/top/artists?time_range=long_term&limit=50');
+
+                // Get current playback state
+                let currentPlayback = null;
+                try {
+                    currentPlayback = await makeSpotifyRequest('/me/player');
+                } catch (e) {
+                    console.log('No active playback');
+                }
+
+                // Get audio features for recent tracks
+                const trackIds = recentTracks.items.slice(0, 20).map(item => item.track.id).filter(id => id).join(',');
+                let audioFeatures = null;
+                if (trackIds) {
+                    try {
+                        audioFeatures = await makeSpotifyRequest(`/audio-features?ids=${trackIds}`);
+                    } catch (e) {
+                        console.log('Could not get audio features');
+                    }
+                }
+
+                // Display all the analysis
+                displayStatistics(profile, recentTracks, topTracksShort, topTracksMedium, topTracksLong);
+                displayRecentlyPlayed(recentTracks);
+                displayCategoryAnalysis(topArtistsShort, topArtistsMedium, topArtistsLong, topTracksShort, topTracksMedium, topTracksLong);
+                displayDeviceAnalysis(recentTracks, currentPlayback);
+                if (audioFeatures && audioFeatures.audio_features) {
+                    displayAudioFeaturesAnalysis(audioFeatures, recentTracks);
+                }
+                
+                document.getElementById('loadingIndicator').style.display = 'none';
+                
+            } catch (error) {
+                showError('Error analyzing your data: ' + error.message);
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
+        async function getValidAccessToken() {
+            const token = localStorage.getItem('spotify_access_token');
+            const expiresAt = localStorage.getItem('spotify_token_expires_at');
+            
+            if (!token) {
+                throw new Error('No access token - please reconnect');
+            }
+            
+            // Check if token needs refresh (5 minutes before expiry)
+            if (expiresAt && Date.now() >= (parseInt(expiresAt) - 300000)) {
+                return await refreshToken();
+            }
+            
+            return token;
+        }
+
+        async function refreshToken() {
+            const refreshToken = localStorage.getItem('spotify_refresh_token');
+            const clientId = localStorage.getItem('spotify_client_id');
+            
+            if (!refreshToken) {
+                throw new Error('No refresh token available - please reconnect');
+            }
+            
+            const response = await fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    client_id: clientId,
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken,
+                }),
+            });
+            
+            const data = await response.json();
+            
+            if (data.access_token) {
+                localStorage.setItem('spotify_access_token', data.access_token);
+                localStorage.setItem('spotify_token_expires_at', 
+                    Date.now() + (data.expires_in * 1000));
+                
+                if (data.refresh_token) {
+                    localStorage.setItem('spotify_refresh_token', data.refresh_token);
+                }
+                
+                return data.access_token;
+            } else {
+                throw new Error('Failed to refresh token - please reconnect');
+            }
+        }
+
+        async function makeSpotifyRequest(endpoint) {
+            const token = await getValidAccessToken();
+            const response = await fetch(`https://api.spotify.com/v1${endpoint}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    logout();
+                    throw new Error('Authentication expired - please reconnect');
+                }
+                if (response.status === 403) {
+                    throw new Error('Access forbidden - check your app permissions');
+                }
+                throw new Error(`API Error: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+        }
+
+        function displayStatistics(profile, recentTracks, topTracksShort, topTracksMedium, topTracksLong) {
+            const statsGrid = document.getElementById('statsGrid');
+            const uniqueArtists = new Set();
+            const uniqueTracks = new Set();
+            
+            // Count unique artists and tracks from all data
+            [topTracksShort, topTracksMedium, topTracksLong].forEach(data => {
+                if (data && data.items) {
+                    data.items.forEach(track => {
+                        uniqueTracks.add(track.id);
+                        track.artists.forEach(artist => uniqueArtists.add(artist.id));
+                    });
+                }
+            });
+
+            const totalListeningTime = recentTracks.items ? recentTracks.items.length * 3.5 : 0;
+
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${profile.display_name || 'User'}</div>
+                    <div>Spotify User</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${recentTracks.items ? recentTracks.items.length : 0}</div>
+                    <div>Recently Played</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${uniqueArtists.size}</div>
+                    <div>Unique Artists</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${uniqueTracks.size}</div>
+                    <div>Unique Tracks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${Math.round(totalListeningTime)}</div>
+                    <div>Minutes (Recent)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${profile.country || 'Unknown'}</div>
+                    <div>Country</div>
+                </div>
+            `;
+            
+            document.getElementById('statsContainer').style.display = 'block';
+        }
+
+        function displayRecentlyPlayed(recentTracks) {
+            const container = document.getElementById('recentlyPlayed');
+            
+            if (!recentTracks.items || recentTracks.items.length === 0) {
+                container.innerHTML = '<p>No recently played tracks found.</p>';
+                document.getElementById('recentlyPlayedContainer').style.display = 'block';
+                return;
+            }
+            
+            container.innerHTML = recentTracks.items.map(item => {
+                const track = item.track;
+                const playedAt = new Date(item.played_at).toLocaleString();
+                const imageUrl = track.album.images[2]?.url || track.album.images[0]?.url || '';
+                
+                return `
+                    <div class="track-item">
+                        <img src="${imageUrl}" alt="${track.name}" class="track-image" onerror="this.style.display='none'">
+                        <div class="track-info">
+                            <div class="track-name">${track.name}</div>
+                            <div class="track-artist">${track.artists.map(a => a.name).join(', ')}</div>
+                        </div>
+                        <div class="track-time">${playedAt}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('recentlyPlayedContainer').style.display = 'block';
+        }
+
+        function displayCategoryAnalysis(topArtistsShort, topArtistsMedium, topArtistsLong, topTracksShort, topTracksMedium, topTracksLong) {
+            const container = document.getElementById('categoryAnalysis');
+            
+            // Analyze genres
+            const genreCount = {};
+            [topArtistsShort, topArtistsMedium, topArtistsLong].forEach(data => {
+                if (data && data.items) {
+                    data.items.forEach(artist => {
+                        if (artist.genres) {
+                            artist.genres.forEach(genre => {
+                                genreCount[genre] = (genreCount[genre] || 0) + 1;
+                            });
+                        }
+                    });
+                }
+            });
+
+            const topGenres = Object.entries(genreCount)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 10);
+
+            // Analyze listening patterns by time period
+            const timeRanges = {
+                'Last 4 weeks': topTracksShort?.items?.length || 0,
+                'Last 6 months': topTracksMedium?.items?.length || 0,
+                'All time': topTracksLong?.items?.length || 0
+            };
+
+            container.innerHTML = `
+                <h3>🎭 Top Genres</h3>
+                <div style="margin-bottom: 20px;">
+                    ${topGenres.length > 0 ? topGenres.map(([genre, count]) => `
+                        <div style="margin: 5px 0; padding: 8px; background: rgba(29, 185, 84, 0.1); border-radius: 5px;">
+                            <strong>${genre}</strong> (${count} artists)
+                        </div>
+                    `).join('') : '<p>No genre data available</p>'}
+                </div>
+                
+                <h3>📈 Listening Activity by Time Period</h3>
+                <div>
+                    ${Object.entries(timeRanges).map(([period, count]) => `
+                        <div style="margin: 5px 0; padding: 8px; background: rgba(29, 185, 84, 0.1); border-radius: 5px;">
+                            <strong>${period}:</strong> ${count} top tracks
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            document.getElementById('categoryContainer').style.display = 'block';
+        }
+
+        function displayDeviceAnalysis(recentTracks, currentPlayback) {
+            const container = document.getElementById('deviceAnalysis');
+            
+            // Analyze device usage from recent tracks context
+            const contexts = {};
+            
+            if (recentTracks.items) {
+                recentTracks.items.forEach(item => {
+                    if (item.context && item.context.type) {
+                        const contextType = item.context.type;
+                        contexts[contextType] = (contexts[contextType] || 0) + 1;
+                    }
+                });
+            }
+
+            let currentDevice = 'No active playback';
+            if (currentPlayback && currentPlayback.device) {
+                currentDevice = `${currentPlayback.device.name} (${currentPlayback.device.type})`;
+            }
+
+            container.innerHTML = `
+                <h3>📱 Current Playback Device</h3>
+                <div style="padding: 15px; background: rgba(29, 185, 84, 0.1); border-radius: 5px; margin-bottom: 20px;">
+                    <strong>${currentDevice}</strong>
+                    ${currentPlayback && currentPlayback.device ? `<br><small>Volume: ${currentPlayback.device.volume_percent}%</small>` : ''}
+                </div>
+                
+                <h3>🎵 Listening Contexts</h3>
+                <div>
+                    ${Object.keys(contexts).length > 0 ? Object.entries(contexts).map(([context, count]) => `
+                        <div style="margin: 5px 0; padding: 8px; background: rgba(29, 185, 84, 0.1); border-radius: 5px;">
+                            <strong>${context}:</strong> ${count} tracks
+                        </div>
+                    `).join('') : '<p>No context data available</p>'}
+                </div>
+                
+                <p style="margin-top: 20px; font-size: 0.9em; color: #b3b3b3;">
+                    <em>Note: This tracks listening across ALL your devices - phone, PC, web player, smart speakers, etc. 
+                    Spotify's API aggregates data from all connected devices automatically.</em>
+                </p>
+            `;
+            
+            document.getElementById('deviceContainer').style.display = 'block';
+        }
+
+        function displayAudioFeaturesAnalysis(audioFeatures, recentTracks) {
+            const container = document.getElementById('audioFeaturesAnalysis');
+            const features = audioFeatures.audio_features.filter(f => f !== null);
+            
+            if (features.length === 0) {
+                container.innerHTML = '<p>No audio features available for recent tracks.</p>';
+                document.getElementById('audioFeaturesContainer').style.display = 'block';
+                return;
+            }
+            
+            // Calculate averages
+            const avgFeatures = {
+                danceability: features.reduce((sum, f) => sum + f.danceability, 0) / features.length,
+                energy: features.reduce((sum, f) => sum + f.energy, 0) / features.length,
+                valence: features.reduce((sum, f) => sum + f.valence, 0) / features.length,
+                acousticness: features.reduce((sum, f) => sum + f.acousticness, 0) / features.length,
+                instrumentalness: features.reduce((sum, f) => sum + f.instrumentalness, 0) / features.length,
+                tempo: features.reduce((sum, f) => sum + f.tempo, 0) / features.length
+            };
+            
+            // Mood analysis
+            const moodScore = avgFeatures.valence;
+            let mood = 'Neutral';
+            if (moodScore > 0.7) mood = 'Very Happy';
+            else if (moodScore > 0.5) mood = 'Happy';
+            else if (moodScore < 0.3
